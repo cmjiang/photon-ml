@@ -26,6 +26,7 @@ import com.linkedin.photon.ml.util.Linalg.choleskySolve
  * Stationary kernels depend on the relative positions of points (e.g. distance), rather than on their absolute
  * positions.
  *
+ * @param indexedTransformMap the map specifies the indices and transformation function of hyper-parameters
  * @param amplitude the covariance amplitude
  * @param noise the observation noise
  * @param lengthScale the length scale of the kernel. This controls the complexity of the kernel, or the degree to which
@@ -33,6 +34,7 @@ import com.linkedin.photon.ml.util.Linalg.choleskySolve
  *   allow more.
  */
 abstract class StationaryKernel(
+    indexedTransformMap: Map[Int, Double => Double] = Map(),
     amplitude: Double = 1.0,
     noise: Double = 1e-4,
     lengthScale: DenseVector[Double] = DenseVector(1.0))
@@ -57,6 +59,20 @@ abstract class StationaryKernel(
   protected[kernels] def fromPairwiseDistances(dists: DenseMatrix[Double]): DenseMatrix[Double]
 
   /**
+   * Unwraps hyper-parameters from scaled values to true values
+   *
+   * @param x the matrix of points, where each of the m rows is a point in the space and some columns contain scaled values
+   * @return the unwrapped x that all the columns have true values
+   */
+  protected[kernels] def transform(x: DenseMatrix[Double]): DenseMatrix[Double] = {
+    val u = x.copy
+    indexedTransformMap.map { case (index: Int, transform: (Double => Double)) =>
+      u(::, index) := u(::, index).map(element => transform(element))
+    }
+    u
+  }
+
+  /**
    * Applies the kernel function to the given points
    *
    * @param x the matrix of points, where each of the m rows is a point in the space
@@ -65,11 +81,12 @@ abstract class StationaryKernel(
   override def apply(x: DenseMatrix[Double]): DenseMatrix[Double] = {
     require(x.rows > 0 && x.cols > 0, "Empty input.")
 
-    val ls = expandDimensions(lengthScale, x.cols)
-    val dists = pairwiseDistances(x(*,::) / ls)
+    val u = transform(x)
+    val ls = expandDimensions(lengthScale, u.cols)
+    val dists = pairwiseDistances(u(*,::) / ls)
 
     (amplitude * fromPairwiseDistances(dists)) +
-      (noise * DenseMatrix.eye[Double](x.rows))
+      (noise * DenseMatrix.eye[Double](u.rows))
   }
 
   /**
@@ -83,8 +100,10 @@ abstract class StationaryKernel(
     require(x1.rows > 0 && x1.cols > 0 && x2.rows > 0, "Empty input.")
     require(x1.cols == x2.cols, "Inputs must have the same number of columns")
 
-    val ls = expandDimensions(lengthScale, x1.cols)
-    val dists = pairwiseDistances(x1(*,::) / ls, x2(*,::) / ls)
+    val u1 = transform(x1)
+    val u2 = transform(x2)
+    val ls = expandDimensions(lengthScale, u1.cols)
+    val dists = pairwiseDistances(u1(*,::) / ls, u2(*,::) / ls)
 
     amplitude * fromPairwiseDistances(dists)
   }

@@ -35,6 +35,7 @@ import breeze.stats.stddev
  * @see "Practical Bayesian Optimization of Machine Learning Algorithms" (PBO),
  *   https://papers.nips.cc/paper/4522-practical-bayesian-optimization-of-machine-learning-algorithms.pdf
  *
+ * @param indexedTransformMap the map specifies the indices and transformation function of hyper-parameters
  * @param amplitude the covariance amplitude
  * @param noise the observation noise
  * @param lengthScale the length scale of the kernel. This controls the complexity of the kernel, or the degree to which
@@ -42,10 +43,11 @@ import breeze.stats.stddev
  *   allow more.
  */
 class Matern52(
+    indexedTransformMap: Map[Int, Double => Double] = Map(),
     amplitude: Double = 1.0,
     noise: Double = 1e-4,
     lengthScale: DenseVector[Double] = DenseVector(1.0))
-  extends StationaryKernel(amplitude, noise, lengthScale) {
+  extends StationaryKernel(indexedTransformMap, amplitude, noise, lengthScale) {
 
   /**
    * Computes the Matern 5/2 kernel function from the pairwise distances between points.

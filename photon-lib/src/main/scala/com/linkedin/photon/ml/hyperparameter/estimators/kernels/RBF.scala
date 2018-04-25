@@ -25,6 +25,7 @@ import breeze.stats.stddev
  *
  * Where $r(x,x')$ is the Euclidean distance between $x$ and $x'$.
  *
+ * @param indexedTransformMap the map specifies the indices and transformation function of hyper-parameters
  * @param amplitude the covariance amplitude
  * @param noise the observation noise
  * @param lengthScale the length scale of the kernel. This controls the complexity of the kernel, or the degree to which
@@ -32,10 +33,11 @@ import breeze.stats.stddev
  *   allow more.
  */
 class RBF(
+    indexedTransformMap: Map[Int, Double => Double] = Map(),
     amplitude: Double = 1.0,
     noise: Double = 1e-4,
     lengthScale: DenseVector[Double] = DenseVector(1.0))
-  extends StationaryKernel(amplitude, noise, lengthScale) {
+  extends StationaryKernel(indexedTransformMap, amplitude, noise, lengthScale) {
 
   /**
    * Computes the RBF kernel function from the pairwise distances between points.
