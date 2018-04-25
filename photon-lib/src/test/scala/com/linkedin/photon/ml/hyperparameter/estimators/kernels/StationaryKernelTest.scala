@@ -27,8 +27,8 @@ class StationaryKernelTest {
 
   private val tol = 1e-7
   private val kernel = new RBF(
-    indexedTransformMap = Map(1 -> ((x:Double) => Math.pow(10, x)), 3 -> ((x:Double) => Math.pow(x, 2))),
-    noise = 0.0)
+    noise = 0.0,
+    indexedTransformMap = Map(1 -> ((x:Double) => Math.pow(10, x)), 3 -> ((x:Double) => Math.pow(x, 2))))
 
   /**
    * Test data and results generated from reference implementation in scikit-learn

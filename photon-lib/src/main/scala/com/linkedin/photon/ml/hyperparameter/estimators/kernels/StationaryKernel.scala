@@ -26,18 +26,18 @@ import com.linkedin.photon.ml.util.Linalg.choleskySolve
  * Stationary kernels depend on the relative positions of points (e.g. distance), rather than on their absolute
  * positions.
  *
- * @param indexedTransformMap the map specifies the indices and transformation function of hyper-parameters
  * @param amplitude the covariance amplitude
  * @param noise the observation noise
  * @param lengthScale the length scale of the kernel. This controls the complexity of the kernel, or the degree to which
  *   it can vary within a given region of the function's domain. Higher values allow less variation, and lower values
  *   allow more.
+ * @param indexedTransformMap the map specifies the indices and transformation function of hyper-parameters
  */
 abstract class StationaryKernel(
-    indexedTransformMap: Map[Int, Double => Double] = Map(),
     amplitude: Double = 1.0,
     noise: Double = 1e-4,
-    lengthScale: DenseVector[Double] = DenseVector(1.0))
+    lengthScale: DenseVector[Double] = DenseVector(1.0),
+    indexedTransformMap: Map[Int, Double => Double] = Map())
   extends Kernel {
 
   // Amplitude lognormal prior
@@ -65,11 +65,11 @@ abstract class StationaryKernel(
    * @return the unwrapped x that all the columns have true values
    */
   protected[kernels] def transform(x: DenseMatrix[Double]): DenseMatrix[Double] = {
-    val u = x.copy
-    indexedTransformMap.map { case (index: Int, transform: (Double => Double)) =>
-      u(::, index) := u(::, index).map(element => transform(element))
+    val xTransformed = x.copy
+    indexedTransformMap.map { case (index: Int, rescalingFunction: (Double => Double)) =>
+      xTransformed(::, index) := xTransformed(::, index).map(rescalingFunction)
     }
-    u
+    xTransformed
   }
 
   /**
@@ -81,12 +81,12 @@ abstract class StationaryKernel(
   override def apply(x: DenseMatrix[Double]): DenseMatrix[Double] = {
     require(x.rows > 0 && x.cols > 0, "Empty input.")
 
-    val u = transform(x)
-    val ls = expandDimensions(lengthScale, u.cols)
-    val dists = pairwiseDistances(u(*,::) / ls)
+    val xTransformed = transform(x)
+    val ls = expandDimensions(lengthScale, xTransformed.cols)
+    val dists = pairwiseDistances(xTransformed(*,::) / ls)
 
     (amplitude * fromPairwiseDistances(dists)) +
-      (noise * DenseMatrix.eye[Double](u.rows))
+      (noise * DenseMatrix.eye[Double](xTransformed.rows))
   }
 
   /**
@@ -100,10 +100,10 @@ abstract class StationaryKernel(
     require(x1.rows > 0 && x1.cols > 0 && x2.rows > 0, "Empty input.")
     require(x1.cols == x2.cols, "Inputs must have the same number of columns")
 
-    val u1 = transform(x1)
-    val u2 = transform(x2)
-    val ls = expandDimensions(lengthScale, u1.cols)
-    val dists = pairwiseDistances(u1(*,::) / ls, u2(*,::) / ls)
+    val x1Transformed = transform(x1)
+    val x2Transformed = transform(x2)
+    val ls = expandDimensions(lengthScale, x1Transformed.cols)
+    val dists = pairwiseDistances(x1Transformed(*,::) / ls, x2Transformed(*,::) / ls)
 
     amplitude * fromPairwiseDistances(dists)
   }
